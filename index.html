@@ -187,11 +187,13 @@ $("#rb").addEventListener("click",async e=>{
   try{await navigator.clipboard.writeText(txt);e.target.textContent="Copiado ✓"}catch{prompt("Copie a mensagem:",txt)}
   setTimeout(()=>e.target.textContent="Copiar cobrança",1500);
 });
-$("#add").onclick=()=>{
-  const last=S.cards[S.cards.length-1];
-  const nc={id:crypto.randomUUID(),carta:"",preco:null,quem:"",leilao:last?last.leilao:null};S.cards.push(nc);
-  saveCard(nc);$("#q").value="";$("#fl").value="";renderStock();const i=[...document.querySelectorAll('#eb input[data-f="carta"]')].pop();i&&i.focus();
-};
+function addCard(focus){
+  const flv=$("#fl").value,last=S.cards[S.cards.length-1];
+  const nc={id:crypto.randomUUID(),carta:"",preco:null,quem:"",leilao:flv?num(flv):(last?last.leilao:null)};
+  S.cards.push(nc);saveCard(nc);$("#q").value="";renderStock();
+  if(focus){const i=[...document.querySelectorAll('#eb input[data-f="carta"]')].pop();i&&i.focus();}
+}
+$("#add").onclick=()=>addCard(true);
 $("#imp").onclick=async()=>{
   $("#imp").disabled=true;st("importando…");
   for(let i=0;i<SEED.length;i+=200){const r=await sb.from("cards").insert(SEED.slice(i,i+200).map(c=>({...c,user_id:uid})));if(r.error){st("erro na importação");console.error(r.error);$("#imp").disabled=false;return}}
@@ -201,7 +203,13 @@ function verticalTab(e){
   const cell=e.target.closest("td");if(!cell)return;
   const row=cell.parentElement,tbody=row.parentElement;
   const ci=[...row.children].indexOf(cell),ri=[...tbody.children].indexOf(row);
-  const nextRow=tbody.children[e.shiftKey?ri-1:ri+1];if(!nextRow)return;
+  const nextRow=tbody.children[e.shiftKey?ri-1:ri+1];
+  if(!nextRow){
+    if(!e.shiftKey&&tbody===$("#eb")&&cell.querySelector('[data-f="leilao"]')&&e.target.value.trim()!==""){
+      e.preventDefault();addCard(true);
+    }
+    return;
+  }
   const target=nextRow.children[ci]?.querySelector("input,textarea");if(!target)return;
   e.preventDefault();target.focus();target.select?.();
 }
