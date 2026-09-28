@@ -2,9 +2,7 @@
 <html lang="pt-BR">
 <head>
 <meta charset="utf-8">
-<!-- Favicon atualizado com a imagem fornecida -->
 <link rel="icon" href="favi.png">
-<!-- Restante do <head> e <style> conforme original -->
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;800&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
@@ -49,85 +47,55 @@ tr.done{opacity:.55}
 </head>
 <body>
 <div id="login" hidden>
-<img src="favi.png" alt="Lilie's Club">
+  <img src="favi.png" alt="Lilie's Club">
   <h1 style="justify-content:center">Lilie's Club</h1>
   <input type="text" id="em" placeholder="e-mail" autocomplete="username">
-  <input type="password" id="pw" placeholder="senha" autocomplete="current-password">
+  <input type="password" id="pw" placeholder="senha" autocomplete="current-password" style="background:var(--card);border:1px solid var(--bd);border-radius:8px;padding:6px 8px;color:var(--tx)">
   <button class="btn" id="go" style="width:100%">Entrar</button>
   <div class="err" id="err"></div>
 </div>
 
 <div class="wrap" id="app" hidden>
 <header>
-  <h1>
-    <img src="favi.png" alt="">
-    Leilões
-  </h1>
-  <span>
-    <span id="st">conectando…</span>
-    <button class="btn g" id="out" style="margin-left:6px">Sair</button>
-  </span>
+  <h1><img src="favi.png" alt="">Lilie's Club</h1>
+  <span><span id="st">conectando…</span> <button class="btn g" id="out" style="margin-left:6px">Sair</button></span>
 </header>
 
 <div class="tiles" id="tiles"></div>
-<div class="tabs">
-  <button class="tab on" data-t="estoque">Estoque</button>
-  <button class="tab" data-t="relatorio">Relatório</button>
-</div>
+<div class="tabs"><button class="tab on" data-t="estoque">Estoque</button><button class="tab" data-t="relatorio">Relatório</button></div>
 
 <section id="estoque">
-  <div class="bar">
-    <input type="search" id="q" placeholder="Buscar carta ou pessoa…">
-    <select id="fl"></select>
-    <button class="btn" id="add">+ Adicionar carta</button>
-    <button class="btn g" id="imp" hidden>Importar planilha (556 cartas)</button>
-  </div>
-  <div class="tw">
-    <table>
-      <thead>
-        <tr><th>CARTA</th><th style="width:90px">PREÇO (R$)</th><th>QUEM LEVOU</th><th style="width:90px">Nº LEILÃO</th><th style="width:30px"></th></tr>
-      </thead>
-      <tbody id="eb"></tbody>
-    </table>
-  </div>
-  <datalist id="buyers"></datalist>
+<div class="bar">
+<input type="search" id="q" placeholder="Buscar carta ou pessoa…">
+<select id="fl"></select>
+<button class="btn" id="add">+ Adicionar carta</button>
+<button class="btn g" id="imp" hidden>Importar planilha (556 cartas)</button>
+</div>
+<div class="tw"><table><thead><tr><th>CARTA</th><th style="width:90px">PREÇO (R$)</th><th>QUEM LEVOU</th><th style="width:90px">Nº LEILÃO</th><th style="width:30px"></th></tr></thead><tbody id="eb"></tbody></table></div>
+<datalist id="buyers"></datalist>
 </section>
 
 <section id="relatorio" hidden>
-  <div class="bar">
-    <select id="rf">
-      <option value="a">Em aberto</option>
-      <option value="t">Todos</option>
-      <option value="c">Concluídos</option>
-    </select>
-    <input type="search" id="rq" placeholder="Buscar pessoa…">
-  </div>
-  <div class="tw">
-    <table style="min-width:980px">
-      <thead>
-        <tr><th>QUEM LEVOU</th><th>CARTA</th><th>VALOR TOTAL</th><th>PAGO</th><th>COBRANÇA ENVIADA?</th><th>FRETE (R$)</th><th>ENVIADO?</th><th>OBSERVAÇÕES</th><th>CONCLUÍDO</th></tr>
-      </thead>
-      <tbody id="rb"></tbody>
-    </table>
-  </div>
+<div class="bar"><select id="rf"><option value="a">Em aberto</option><option value="t">Todos</option><option value="c">Concluídos</option></select><input type="search" id="rq" placeholder="Buscar pessoa…"></div>
+<div class="tw"><table style="min-width:980px"><thead><tr><th>QUEM LEVOU</th><th>CARTA</th><th>VALOR TOTAL</th><th>PAGO</th><th>COBRANÇA ENVIADA?</th><th>FRETE (R$)</th><th>ENVIADO?</th><th>OBSERVAÇÕES</th><th>CONCLUÍDO</th></tr></thead><tbody id="rb"></tbody></table></div>
 </section>
 </div>
 
 <script>
-// ATENÇÃO: Substitua as duas constantes abaixo pelas credenciais do seu Supabase
-const SUPABASE_URL = "https://isvmmldwygwqrxrlumxk.supabase.co";
-const SUPABASE_KEY = "sb_publishable_Fo4TB_Zz8fSENLvXSh0jpg_5hXb70Fs";
+// ATENÇÃO: Substitua as duas variáveis abaixo pelas suas credenciais reais do Supabase
+const SUPABASE_URL="https://isvmmldwygwqrxrlumxk.supabase.co";
+const SUPABASE_KEY="sb_publishable_Fo4TB_Zz8fSENLvXSh0jpg_5hXb70Fs";
 
-const SEED = [{"carta": "Horsea (0502/07)", "preco": 4.0, "quem": "VIK", "leilao": 1}]; // Mantido do seu código
-const PIX = "meu pix (CPF): 10028300955 caixa - Gabriella Barbosa Alvarenga";
+const SEED=[{"carta": "Horsea (0502/07)", "preco": 4.0, "quem": "VIK", "leilao": 1}]; // Lista mantida
+const PIX="meu pix (CPF): 10028300955 caixa - Gabriella Barbosa Alvarenga";
 
-const $ = s => document.querySelector(s);
-const esc = s => String(s??"").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
-const brl = n => (n||0).toLocaleString("pt-BR", {style:"currency", currency:"BRL"});
-const norm = s => (s||"").trim().replace(/\s+/g, ' ').toUpperCase();
-const num = v => { const n = parseFloat(String(v).replace(",", ".")); return isNaN(n) ? null : n; };
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const brl=n=>(n||0).toLocaleString("pt-BR",{style:"currency",currency:"BRL"});
+const norm=s=>(s||"").trim().replace(/\s+/g,' ').toUpperCase();
+const num=v=>{const n=parseFloat(String(v).replace(",","."));return isNaN(n)?null:n};
 
-let sb = null;
+let sb=null;
 try {
   if (SUPABASE_URL !== "COLE_AQUI_A_URL_DO_PROJETO") {
     sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
@@ -136,197 +104,139 @@ try {
   console.error("Erro na inicialização do Supabase:", err);
 }
 
-let S = { cards: [], orders: {} }, uid = null;
-const st = t => $("#st").textContent = t;
+let S={cards:[],orders:{}},uid=null;
+const st=t=>$("#st").textContent=t;
 
 function initAuth() {
   if (!sb) {
-    st("⚠️ Chaves do Supabase não configuradas!");
+    st("⚠️ Supabase não configurado");
     $("#login").hidden = false;
     $("#app").hidden = true;
-    $("#err").textContent = "Configure a URL e a Anon Key no código.";
+    $("#err").textContent = "Configure a URL e a Key no script.";
     return;
   }
-
-  sb.auth.onAuthStateChange((ev, session) => {
-    if (ev === "INITIAL_SESSION" || ev === "SIGNED_IN" || ev === "SIGNED_OUT") {
-      setTimeout(() => show(session), 0);
-    }
+  sb.auth.onAuthStateChange((ev,session)=>{
+    if(ev==="INITIAL_SESSION"||ev==="SIGNED_IN"||ev==="SIGNED_OUT") setTimeout(()=>show(session),0);
   });
 }
 
-function show(session) {
-  uid = session ? session.user.id : null;
-  $("#login").hidden = !!session;
-  $("#app").hidden = !session;
-  if (session) load();
+const chk=(p,ok)=>p.then(r=>{if(r.error){console.error(r.error);st("erro ao salvar")}else if(ok!==false)st("☁️ salvo")});
+function groups(){const g={};S.cards.forEach(c=>{const n=norm(c.quem);if(n)(g[n]=g[n]||[]).push(c)});return g}
+const ord=n=>S.orders[n]||{};
+const saveCard=c=>{st("salvando…");chk(sb.from("cards").upsert({id:c.id,user_id:uid,carta:c.carta,preco:c.preco,quem:c.quem,leilao:c.leilao}))};
+function setOrd(n,patch){
+  const o=S.orders[n]={...ord(n),...patch};renderTiles();st("salvando…");
+  chk(sb.from("orders").upsert({user_id:uid,quem:n,pago:!!o.pago,cobranca:!!o.cobranca,frete:o.frete??null,enviado:!!o.enviado,obs:o.obs||"",concluido:!!o.concluido},{onConflict:"user_id,quem"}));
 }
-
-// Lógica original de sincronização e renderização do seu App
-const chk = (p, ok) => p.then(r => {
-  if (r.error) { console.error(r.error); st("erro ao salvar"); }
-  else if (ok !== false) st("☁️ salvo");
-});
-
-function groups() {
-  const g = {};
-  S.cards.forEach(c => { const n = norm(c.quem); if (n) (g[n] = g[n] || []).push(c); });
-  return g;
-}
-
-const ord = n => S.orders[n] || {};
-
-const saveCard = c => {
-  st("salvando…");
-  chk(sb.from("cards").upsert({ id: c.id, user_id: uid, carta: c.carta, preco: c.preco, quem: c.quem, leilao: c.leilao }));
-};
-
-function setOrd(n, patch) {
-  const o = S.orders[n] = { ...ord(n), ...patch };
-  renderTiles();
-  st("salvando…");
-  chk(sb.from("orders").upsert({ user_id: uid, quem: n, pago: !!o.pago, cobranca: !!o.cobranca, frete: o.frete ?? null, enviado: !!o.enviado, obs: o.obs || "", concluido: !!o.concluido }, { onConflict: "user_id,quem" }));
-}
-
-async function load() {
+async function load(){
   st("carregando…");
-  const [c, o] = await Promise.all([
-    sb.from("cards").select("*").order("created_at").order("id"),
-    sb.from("orders").select("*")
-  ]);
-  if (c.error || o.error) { st("erro ao carregar"); console.error(c.error || o.error); return; }
-  S.cards = c.data.map(r => ({ id: r.id, carta: r.carta, preco: r.preco, quem: r.quem, leilao: r.leilao }));
-  S.orders = {};
-  o.data.forEach(r => S.orders[r.quem] = { pago: r.pago, cobranca: r.cobranca, frete: r.frete, enviado: r.enviado, obs: r.obs, concluido: r.concluido });
-  all();
-  st("☁️ salvo");
+  const [c,o]=await Promise.all([sb.from("cards").select("*").order("created_at").order("id"),sb.from("orders").select("*")]);
+  if(c.error||o.error){st("erro ao carregar");console.error(c.error||o.error);return}
+  S.cards=c.data.map(r=>({id:r.id,carta:r.carta,preco:r.preco,quem:r.quem,leilao:r.leilao}));
+  S.orders={};o.data.forEach(r=>S.orders[r.quem]={pago:r.pago,cobranca:r.cobranca,frete:r.frete,enviado:r.enviado,obs:r.obs,concluido:r.concluido});
+  all();st("☁️ salvo");
 }
-
-function renderTiles() {
-  const g = groups(); let tot = 0, pago = 0, abertos = 0, cartas = 0;
-  Object.entries(g).forEach(([n, cs]) => {
-    const v = cs.reduce((a, c) => a + (c.preco || 0), 0), o = ord(n);
-    tot += v; cartas += cs.length;
-    if (o.pago) pago += v;
-    if (!o.concluido) abertos++;
+function renderTiles(){
+  const g=groups();let tot=0,pago=0,abertos=0,cartas=0;
+  Object.entries(g).forEach(([n,cs])=>{
+    const v=cs.reduce((a,c)=>a+(c.preco||0),0),o=ord(n);tot+=v;cartas+=cs.length;
+    if(o.pago)pago+=v;if(!o.concluido)abertos++;
   });
-  $("#tiles").innerHTML = [["Cartas arrematadas", cartas], ["Total dos leilões", brl(tot)], ["Já recebido", brl(pago)], ["A receber", brl(tot - pago)], ["Pedidos em aberto", abertos]]
-    .map(([a, b]) => `<div class="tile"><span>${a}</span><b>${b}</b></div>`).join("");
+  $("#tiles").innerHTML=[["Cartas arrematadas",cartas],["Total dos leilões",brl(tot)],["Já recebido",brl(pago)],["A receber",brl(tot-pago)],["Pedidos em aberto",abertos]]
+    .map(([a,b])=>`<div class="tile"><span>${a}</span><b>${b}</b></div>`).join("");
 }
-
-function renderFilter() {
-  const cur = $("#fl").value || "";
-  const ls = [...new Set(S.cards.map(c => c.leilao).filter(x => x != null))].sort((a, b) => a - b);
-  $("#fl").innerHTML = '<option value="">Todos os leilões</option>' + ls.map(l => `<option value="${l}">Leilão ${l}</option>`).join("");
-  $("#fl").value = ls.includes(+cur) ? cur : "";
-  $("#buyers").innerHTML = Object.keys(groups()).sort().map(n => `<option value="${esc(n)}">`).join("");
+function renderFilter(){
+  const cur=$("#fl").value||"";
+  const ls=[...new Set(S.cards.map(c=>c.leilao).filter(x=>x!=null))].sort((a,b)=>a-b);
+  $("#fl").innerHTML='<option value="">Todos os leilões</option>'+ls.map(l=>`<option value="${l}">Leilão ${l}</option>`).join("");
+  $("#fl").value=ls.includes(+cur)?cur:"";
+  $("#buyers").innerHTML=Object.keys(groups()).sort().map(n=>`<option value="${esc(n)}">`).join("");
 }
-
-function renderStock() {
-  const q = norm($("#q").value), fl = $("#fl").value;
-  const rows = S.cards.filter(c => (!fl || String(c.leilao) === fl) && (!q || norm(c.carta + " " + c.quem).includes(q)));
-  $("#eb").innerHTML = rows.map(c => `<tr data-id="${c.id}">
+function renderStock(){
+  const q=norm($("#q").value),fl=$("#fl").value;
+  const rows=S.cards.filter(c=>(!fl||String(c.leilao)===fl)&&(!q||norm(c.carta+" "+c.quem).includes(q)));
+  $("#eb").innerHTML=rows.map(c=>`<tr data-id="${c.id}">
    <td><input type="text" data-f="carta" value="${esc(c.carta)}"></td>
    <td><input type="text" inputmode="decimal" data-f="preco" value="${c.preco??""}"></td>
    <td><input type="text" data-f="quem" list="buyers" value="${esc(c.quem)}"></td>
    <td><input type="text" inputmode="numeric" data-f="leilao" value="${c.leilao??""}"></td>
-   <td><button class="x" data-del title="Remover">✕</button></td></tr>`).join("") || '<tr><td colspan="5" class="mut">Nenhuma carta ainda.</td></tr>';
-  $("#imp").hidden = S.cards.length > 0;
+   <td><button class="x" data-del title="Remover">✕</button></td></tr>`).join("")||'<tr><td colspan="5" class="mut">Nenhuma carta ainda.</td></tr>';
+  $("#imp").hidden=S.cards.length>0;
 }
-
-function msg(n, cs) {
-  const v = cs.reduce((a, c) => a + (c.preco || 0), 0), f = ord(n).frete || 0;
-  return `Oi, ${n.split(" ")[0]}! ✨ Suas cartinhas:\n${cs.map(c => "• " + c.carta + (c.preco ? ` (${brl(c.preco)})` : "")).join("\n")}\n\nValor das cartas: ${brl(v)}${f ? `\nFrete: ${brl(f)}\nTotal:${brl(v + f)}` : ""}\n\n${PIX}\nvou só te pedir pra me mandar o comprovante aqui quando fizer o pagamento, ok?`;
+function msg(n,cs){
+  const v=cs.reduce((a,c)=>a+(c.preco||0),0),f=ord(n).frete||0;
+  return `Oi, ${n.split(" ")[0]}! ✨ Suas cartinhas:\n${cs.map(c=>"• "+c.carta+(c.preco?` (${brl(c.preco)})`:"")).join("\n")}\n\nValor das cartas: ${brl(v)}${f?`\nFrete: ${brl(f)}\nTotal:${brl(v+f)}`:""}\n\n${PIX}\nvou só te pedir pra me mandar o comprovante aqui quando fizer o pagamento, ok?`;
 }
-
-function renderReport() {
-  const g = groups(), f = $("#rf").value, q = norm($("#rq").value);
-  const list = Object.keys(g).filter(n => (!q || n.includes(q)) && (f === "t" || (f === "c") === !!ord(n).concluido))
-    .sort((a, b) => (!!ord(a).concluido - !!ord(b).concluido) || a.localeCompare(b));
-  $("#rb").innerHTML = list.map(n => {
-    const o = ord(n), cs = g[n], v = cs.reduce((a, c) => a + (c.preco || 0), 0), k = esc(n);
-    const cb = (f, on) => `<td><input type="checkbox" data-o="${f}" ${on ? "checked" : ""}></td>`;
-    return `<tr class="${o.concluido ? "done" : ""}" data-n="${k}">
+function renderReport(){
+  const g=groups(),f=$("#rf").value,q=norm($("#rq").value);
+  const list=Object.keys(g).filter(n=>(!q||n.includes(q))&&(f==="t"||(f==="c")===!!ord(n).concluido))
+    .sort((a,b)=>(!!ord(a).concluido-!!ord(b).concluido)||a.localeCompare(b));
+  $("#rb").innerHTML=list.map(n=>{const o=ord(n),cs=g[n],v=cs.reduce((a,c)=>a+(c.preco||0),0),k=esc(n);
+   const cb=(f,on)=>`<td><input type="checkbox" data-o="${f}" ${on?"checked":""}></td>`;
+   return `<tr class="${o.concluido?"done":""}" data-n="${k}">
    <td><b>${k}</b><br><button class="btn g" data-copy style="margin-top:4px;font-size:12px;padding:3px 8px">Copiar cobrança</button></td>
-   <td>${cs.map(c => esc(c.carta)).join(", ")}<div class="mut">${cs.length} carta${cs.length > 1 ? "s" : ""}</div></td>
-   <td class="tot">${brl(v)}${o.frete ? `<div class="mut">+ frete = ${brl(v + o.frete)}</div>` : ""}</td>
-   ${cb("pago", o.pago)}${cb("cobranca", o.cobranca)}
+   <td>${cs.map(c=>esc(c.carta)).join(", ")}<div class="mut">${cs.length} carta${cs.length>1?"s":""}</div></td>
+   <td class="tot">${brl(v)}${o.frete?`<div class="mut">+ frete = ${brl(v+o.frete)}</div>`:""}</td>
+   ${cb("pago",o.pago)}${cb("cobranca",o.cobranca)}
    <td><input type="text" inputmode="decimal" data-o="frete" value="${o.frete??""}" style="width:80px"></td>
-   ${cb("enviado", o.enviado)}
-   <td><textarea data-o="obs" rows="1">${esc(o.obs || "")}</textarea></td>
-   ${cb("concluido", o.concluido)}</tr>`;
-  }).join("") || '<tr><td colspan="9" class="mut">Nada por aqui. Marque “quem levou” no estoque para criar linhas.</td></tr>';
+   ${cb("enviado",o.enviado)}
+   <td><textarea data-o="obs" rows="1">${esc(o.obs||"")}</textarea></td>
+   ${cb("concluido",o.concluido)}</tr>`}).join("")||'<tr><td colspan="9" class="mut">Nada por aqui. Marque “quem levou” no estoque para criar linhas.</td></tr>';
 }
+const all=()=>{renderTiles();renderFilter();renderStock();renderReport()};
 
-const all = () => { renderTiles(); renderFilter(); renderStock(); renderReport(); };
-
-// Event Listeners
-$("#eb").addEventListener("change", e => {
-  const t = e.target, tr = t.closest("tr"), c = S.cards.find(x => x.id === tr.dataset.id), f = t.dataset.f;
-  if (!c || !f) return;
-  if (f === "preco") c.preco = num(t.value);
-  else if (f === "leilao") c.leilao = num(t.value);
-  else if (f === "quem") { c.quem = norm(t.value); t.value = c.quem; }
-  else c.carta = t.value.trim();
-  saveCard(c); renderTiles(); renderFilter(); renderReport();
+$("#eb").addEventListener("change",e=>{
+  const t=e.target,tr=t.closest("tr"),c=S.cards.find(x=>x.id===tr.dataset.id),f=t.dataset.f;if(!c||!f)return;
+  if(f==="preco")c.preco=num(t.value);else if(f==="leilao")c.leilao=num(t.value);
+  else if(f==="quem"){c.quem=norm(t.value);t.value=c.quem}else c.carta=t.value.trim();
+  saveCard(c);renderTiles();renderFilter();renderReport();
 });
-
-$("#eb").addEventListener("click", e => {
-  if (!e.target.matches("[data-del]")) return;
-  const id = e.target.closest("tr").dataset.id;
-  if (confirm("Remover esta carta?")) { S.cards = S.cards.filter(c => c.id !== id); chk(sb.from("cards").delete().eq("id", id)); all(); }
+$("#eb").addEventListener("click",e=>{
+  if(!e.target.matches("[data-del]"))return;
+  const id=e.target.closest("tr").dataset.id;
+  if(confirm("Remover esta carta?")){S.cards=S.cards.filter(c=>c.id!==id);chk(sb.from("cards").delete().eq("id",id));all()}
 });
-
-$("#rb").addEventListener("change", e => {
-  const t = e.target, f = t.dataset.o; if (!f) return;
-  const n = t.closest("tr").dataset.n;
-  setOrd(n, { [f]: t.type === "checkbox" ? t.checked : f === "frete" ? num(t.value) : t.value });
-  if (f !== "obs") renderReport();
+$("#rb").addEventListener("change",e=>{
+  const t=e.target,f=t.dataset.o;if(!f)return;const n=t.closest("tr").dataset.n;
+  setOrd(n,{[f]:t.type==="checkbox"?t.checked:f==="frete"?num(t.value):t.value});
+  if(f!=="obs")renderReport();
 });
-
-$("#rb").addEventListener("click", async e => {
-  if (!e.target.matches("[data-copy]")) return;
-  const n = e.target.closest("tr").dataset.n, txt = msg(n, groups()[n]);
-  try { await navigator.clipboard.writeText(txt); e.target.textContent = "Copiado ✓"; }
-  catch { prompt("Copie a mensagem:", txt); }
-  setTimeout(() => e.target.textContent = "Copiar cobrança", 1500);
+$("#rb").addEventListener("click",async e=>{
+  if(!e.target.matches("[data-copy]"))return;
+  const n=e.target.closest("tr").dataset.n,txt=msg(n,groups()[n]);
+  try{await navigator.clipboard.writeText(txt);e.target.textContent="Copiado ✓"}catch{prompt("Copie a mensagem:",txt)}
+  setTimeout(()=>e.target.textContent="Copiar cobrança",1500);
 });
-
-$("#add").onclick = () => {
-  const last = S.cards[S.cards.length - 1];
-  const nc = { id: crypto.randomUUID(), carta: "", preco: null, quem: "", leilao: last ? last.leilao : null };
-  S.cards.push(nc); saveCard(nc); $("#q").value = ""; $("#fl").value = ""; renderStock();
-  const i = [...document.querySelectorAll('#eb input[data-f="carta"]')].pop(); i && i.focus();
+$("#add").onclick=()=>{
+  const last=S.cards[S.cards.length-1];
+  const nc={id:crypto.randomUUID(),carta:"",preco:null,quem:"",leilao:last?last.leilao:null};S.cards.push(nc);
+  saveCard(nc);$("#q").value="";$("#fl").value="";renderStock();const i=[...document.querySelectorAll('#eb input[data-f="carta"]')].pop();i&&i.focus();
 };
-
-$("#imp").onclick = async () => {
-  $("#imp").disabled = true; st("importando…");
-  for (let i = 0; i < SEED.length; i += 200) {
-    const r = await sb.from("cards").insert(SEED.slice(i, i + 200).map(c => ({ ...c, user_id: uid })));
-    if (r.error) { st("erro na importação"); console.error(r.error); $("#imp").disabled = false; return; }
-  }
-  await load(); $("#imp").disabled = false;
-};
-
-["#q", "#fl"].forEach(s => $(s).addEventListener("input", renderStock));
-["#rf", "#rq"].forEach(s => $(s).addEventListener("input", renderReport));
-
-document.querySelectorAll(".tab").forEach(b => b.onclick = () => {
-  document.querySelectorAll(".tab").forEach(x => x.classList.toggle("on", x === b));
-  ["estoque", "relatorio"].forEach(id => $("#" + id).hidden = id !== b.dataset.t);
+$("#imp").onclick=async()=>{
+  $("#imp").disabled=true;st("importando…");
+  for(let i=0;i<SEED.length;i+=200){const r=await sb.from("cards").insert(SEED.slice(i,i+200).map(c=>({...c,user_id:uid})));if(r.error){st("erro na importação");console.error(r.error);$("#imp").disabled=false;return}}
+  await load();$("#imp").disabled=false};
+["#q","#fl"].forEach(s=>$(s).addEventListener("input",renderStock));
+["#rf","#rq"].forEach(s=>$(s).addEventListener("input",renderReport));
+document.querySelectorAll(".tab").forEach(b=>b.onclick=()=>{
+  document.querySelectorAll(".tab").forEach(x=>x.classList.toggle("on",x===b));
+  ["estoque","relatorio"].forEach(id=>$("#"+id).hidden=id!==b.dataset.t);
 });
 
-$("#go").onclick = async () => {
-  if (!sb) return;
-  $("#err").textContent = "";
-  const { error } = await sb.auth.signInWithPassword({ email: $("#em").value.trim(), password: $("#pw").value });
-  if (error) $("#err").textContent = "E-mail ou senha incorretos.";
+function show(session){
+  uid=session?session.user.id:null;
+  $("#login").hidden=!!session;$("#app").hidden=!session;
+  if(session)load();
+}
+$("#go").onclick=async()=>{
+  if(!sb) return;
+  $("#err").textContent="";
+  const {error}=await sb.auth.signInWithPassword({email:$("#em").value.trim(),password:$("#pw").value});
+  if(error)$("#err").textContent="E-mail ou senha incorretos.";
 };
+$("#pw").addEventListener("keydown",e=>{if(e.key==="Enter")$("#go").click()});
+$("#out").onclick=()=>sb&&sb.auth.signOut();
 
-$("#pw").addEventListener("keydown", e => { if (e.key === "Enter") $("#go").click(); });
-$("#out").onclick = () => sb && sb.auth.signOut();
-
-// Inicializa a autenticação
 initAuth();
 </script>
 </body>
