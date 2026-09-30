@@ -39,6 +39,7 @@ td input[type=text],td textarea{width:100%}
 textarea{resize:vertical;min-height:34px}
 input[type=checkbox]{width:20px;height:20px;accent-color:var(--ac)}
 tr.done{opacity:.55}
+tr.rowsel{background:var(--ac2)}
 .x{background:none;border:0;color:var(--mut);cursor:pointer;font-size:16px}
 .mut{color:var(--mut);font-size:12px}.tot{font-weight:600;white-space:nowrap}
 .warn{background:var(--ac2);padding:10px 12px;border-radius:10px;margin-bottom:10px}
@@ -60,9 +61,10 @@ tr.done{opacity:.55}
 <input type="search" id="q" placeholder="Buscar carta ou pessoa…">
 <select id="fl"></select>
 <button class="btn" id="add">+ Adicionar carta</button>
+<button class="btn g" id="copySel">Copiar selecionadas</button>
 <button class="btn g" id="imp" hidden>Importar planilha (556 cartas)</button>
 </div>
-<div class="tw"><table><thead><tr><th>CARTA</th><th style="width:90px">PREÇO (R$)</th><th>QUEM LEVOU</th><th style="width:90px">Nº LEILÃO</th><th style="width:30px"></th></tr></thead><tbody id="eb"></tbody></table></div>
+<div class="tw"><table><thead><tr><th style="width:26px"><input type="checkbox" id="selAll" title="Selecionar tudo"></th><th>CARTA</th><th style="width:90px">PREÇO (R$)</th><th>QUEM LEVOU</th><th style="width:90px">Nº LEILÃO</th><th style="width:30px"></th></tr></thead><tbody id="eb"></tbody></table></div>
 <datalist id="buyers"></datalist>
 </section>
 
@@ -111,14 +113,20 @@ async function load(){
   S.orders={};o.data.forEach(r=>S.orders[gkey(r.quem,r.leilao)]={pago:r.pago,cobranca:r.cobranca,frete:r.frete,enviado:r.enviado,obs:r.obs,concluido:r.concluido});
   all();st("☁️ salvo");
 }
+function activeLeilaoFilter(){
+  const v=$("#estoque").hidden?$("#rfl").value:$("#fl").value;
+  return v?num(v):null;
+}
 function renderTiles(){
-  const g=groups();let tot=0,pago=0,abertos=0,cartas=0;
+  const lf=activeLeilaoFilter(),g=groups();let tot=0,pago=0,abertos=0,cartas=0;
   Object.entries(g).forEach(([k,grp])=>{
+    if(lf!=null&&grp.leilao!==lf)return;
     const v=grp.cards.reduce((a,c)=>a+(c.preco||0),0),o=ord(k);tot+=v;cartas+=grp.cards.length;
     if(o.pago)pago+=v;if(!o.concluido)abertos++;
   });
   $("#tiles").innerHTML=[["Cartas arrematadas",cartas],["Total dos leilões",brl(tot)],["Já recebido",brl(pago)],["A receber",brl(tot-pago)],["Pedidos em aberto",abertos]]
-    .map(([a,b])=>`<div class="tile"><span>${a}</span><b>${b}</b></div>`).join("");
+    .map(([a,b])=>`<div class="tile"><span>${a}</span><b>${b}</b></div>`).join("")
+    +(lf!=null?`<div class="tile" style="grid-column:1/-1;padding:4px 12px"><span class="mut">mostrando só o leilão ${lf}</span></div>`:"");
 }
 function renderFilter(){
   const cur=$("#fl").value||"",curR=$("#rfl").value||"";
@@ -135,12 +143,14 @@ function renderStock(){
   const q=norm($("#q").value),fl=$("#fl").value;
   const rows=S.cards.filter(c=>(!fl||String(c.leilao)===fl)&&(!q||norm(c.carta+" "+c.quem).includes(q)));
   $("#eb").innerHTML=rows.map(c=>`<tr data-id="${c.id}">
+   <td><input type="checkbox" data-sel></td>
    <td><input type="text" data-f="carta" value="${esc(c.carta)}"></td>
    <td><input type="text" inputmode="decimal" data-f="preco" value="${c.preco??""}"></td>
    <td><input type="text" data-f="quem" list="buyers" value="${esc(c.quem)}"></td>
    <td><input type="text" inputmode="numeric" data-f="leilao" value="${c.leilao??""}"></td>
-   <td><button class="x" data-del title="Remover">✕</button></td></tr>`).join("")||'<tr><td colspan="5" class="mut">Nenhuma carta ainda.</td></tr>';
+   <td><button class="x" data-del title="Remover">✕</button></td></tr>`).join("")||'<tr><td colspan="6" class="mut">Nenhuma carta ainda.</td></tr>';
   $("#imp").hidden=S.cards.length>0;
+  $("#selAll").checked=false;
 }
 function msg(grp){
   const cs=grp.cards,v=cs.reduce((a,c)=>a+(c.preco||0),0),f=ord(gkey(grp.quem,grp.leilao)).frete||0;
@@ -166,11 +176,22 @@ function renderReport(){
 const all=()=>{renderTiles();renderFilter();renderStock();renderReport()};
 
 $("#eb").addEventListener("change",e=>{
-  const t=e.target,tr=t.closest("tr"),c=S.cards.find(x=>x.id===tr.dataset.id),f=t.dataset.f;if(!c||!f)return;
+  const t=e.target;
+  if(t.matches("[data-sel]")){t.closest("tr").classList.toggle("rowsel",t.checked);return;}
+  const tr=t.closest("tr"),c=S.cards.find(x=>x.id===tr.dataset.id),f=t.dataset.f;if(!c||!f)return;
   if(f==="preco")c.preco=num(t.value);else if(f==="leilao")c.leilao=num(t.value);
   else if(f==="quem"){c.quem=norm(t.value);t.value=c.quem}else c.carta=t.value.trim();
   saveCard(c);renderTiles();renderFilter();renderReport();
 });
+$("#selAll").onchange=e=>document.querySelectorAll('#eb input[data-sel]').forEach(cb=>{cb.checked=e.target.checked;cb.closest("tr").classList.toggle("rowsel",e.target.checked)});
+$("#copySel").onclick=async()=>{
+  const ids=[...document.querySelectorAll('#eb input[data-sel]:checked')].map(cb=>cb.closest("tr").dataset.id);
+  if(!ids.length){$("#copySel").textContent="Selecione ao menos 1";setTimeout(()=>$("#copySel").textContent="Copiar selecionadas",1500);return;}
+  const chosen=ids.map(id=>S.cards.find(c=>c.id===id)).filter(Boolean);
+  const text=chosen.map(c=>`• ${c.carta}${c.preco!=null?` — ${brl(c.preco)}`:""}`).join("\n");
+  try{await navigator.clipboard.writeText(text);$("#copySel").textContent="Copiado ✓"}catch{prompt("Copie o texto:",text)}
+  setTimeout(()=>$("#copySel").textContent="Copiar selecionadas",1500);
+};
 $("#eb").addEventListener("click",e=>{
   if(!e.target.matches("[data-del]"))return;
   const id=e.target.closest("tr").dataset.id;
@@ -194,10 +215,59 @@ function addCard(focus){
   if(focus){const i=[...document.querySelectorAll('#eb input[data-f="carta"]')].pop();i&&i.focus();}
 }
 $("#add").onclick=()=>addCard(true);
+$("#eb").addEventListener("paste",e=>{
+  const t=e.target;if(!t.dataset.f)return;
+  const text=(e.clipboardData||window.clipboardData).getData("text/plain");
+  const lines=text.replace(/\r/g,"").split("\n").filter((l,i,a)=>l!==""||i<a.length-1);
+  if(lines.length<=1&&!lines[0]?.includes("\t"))return; // deixa o paste normal do navegador acontecer
+  e.preventDefault();
+  const cols=["carta","preco","quem","leilao"];
+  const startCol=cols.indexOf(t.dataset.f);
+  const startRow=cellPos(t).ri;
+  const flv=$("#fl").value;
+  lines.forEach((line,li)=>{
+    const vals=line.split("\t");
+    let row=$("#eb").children[startRow+li],card;
+    if(row)card=S.cards.find(c=>c.id===row.dataset.id);
+    if(!card){
+      card={id:crypto.randomUUID(),carta:"",preco:null,quem:"",leilao:flv?num(flv):null};
+      S.cards.push(card);
+    }
+    vals.forEach((v,vi)=>{
+      const col=cols[startCol+vi];if(!col)return;
+      if(col==="preco")card.preco=num(v);else if(col==="leilao")card.leilao=num(v);
+      else if(col==="quem")card.quem=norm(v);else card.carta=v.trim();
+    });
+    saveCard(card);
+  });
+  renderStock();renderTiles();renderFilter();
+});
 $("#imp").onclick=async()=>{
   $("#imp").disabled=true;st("importando…");
   for(let i=0;i<SEED.length;i+=200){const r=await sb.from("cards").insert(SEED.slice(i,i+200).map(c=>({...c,user_id:uid})));if(r.error){st("erro na importação");console.error(r.error);$("#imp").disabled=false;return}}
   await load();$("#imp").disabled=false};
+function cellPos(el){
+  const cell=el.closest("td");if(!cell)return null;
+  const row=cell.parentElement,tbody=row.parentElement;
+  return {cell,row,tbody,ci:[...row.children].indexOf(cell),ri:[...tbody.children].indexOf(row)};
+}
+function focusCell(tbody,ri,ci){
+  const row=tbody.children[ri];if(!row)return false;
+  const el=row.children[ci]?.querySelector("input,textarea");if(!el)return false;
+  el.focus();el.select?.();return true;
+}
+function arrowNav(e){
+  if(e.target.tagName==="TEXTAREA"&&(e.key==="ArrowUp"||e.key==="ArrowDown"))return;
+  if(!["ArrowUp","ArrowDown","ArrowLeft","ArrowRight"].includes(e.key))return;
+  const p=cellPos(e.target);if(!p)return;
+  const el=e.target;
+  let{ri,ci}=p;
+  if(e.key==="ArrowUp")ri--;
+  else if(e.key==="ArrowDown")ri++;
+  else if(e.key==="ArrowLeft"){if(el.type!=="checkbox"&&(el.selectionStart>0||el.selectionStart==null))return;ci--;}
+  else if(e.key==="ArrowRight"){if(el.type!=="checkbox"&&(el.selectionEnd<el.value.length||el.selectionEnd==null))return;ci++;}
+  if(focusCell(p.tbody,ri,ci))e.preventDefault();
+}
 function verticalTab(e){
   if(e.key!=="Tab")return;
   const cell=e.target.closest("td");if(!cell)return;
@@ -215,11 +285,14 @@ function verticalTab(e){
 }
 $("#eb").addEventListener("keydown",verticalTab);
 $("#rb").addEventListener("keydown",verticalTab);
-["#q","#fl"].forEach(s=>$(s).addEventListener("input",renderStock));
-["#rf","#rfl","#rq"].forEach(s=>$(s).addEventListener("input",renderReport));
+$("#eb").addEventListener("keydown",arrowNav);
+$("#rb").addEventListener("keydown",arrowNav);
+["#q","#fl"].forEach(s=>$(s).addEventListener("input",()=>{renderStock();renderTiles();}));
+["#rf","#rfl","#rq"].forEach(s=>$(s).addEventListener("input",()=>{renderReport();renderTiles();}));
 document.querySelectorAll(".tab").forEach(b=>b.onclick=()=>{
   document.querySelectorAll(".tab").forEach(x=>x.classList.toggle("on",x===b));
   ["estoque","relatorio"].forEach(id=>$("#"+id).hidden=id!==b.dataset.t);
+  renderTiles();
 });
 
 function show(session){
