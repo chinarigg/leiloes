@@ -243,7 +243,7 @@ $("#copySel").onclick=async()=>{
   const ids=[...document.querySelectorAll('#eb input[data-sel]:checked')].map(cb=>cb.closest("tr").dataset.id);
   if(!ids.length){$("#copySel").textContent="Selecione ao menos 1";setTimeout(()=>$("#copySel").textContent="Copiar selecionadas",1500);return;}
   const chosen=ids.map(id=>S.cards.find(c=>c.id===id)).filter(Boolean);
-  const text=chosen.map(c=>`${c.carta} | ${c.quantidade??1} | ${c.preco!=null?brl((c.preco||0)*(c.quantidade||1)):""}`).join("\n");
+  const text=chosen.map(c=>`${c.carta} | ${c.quantidade??1} | ${c.preco!=null?brl(c.preco):""}`).join("\n");
   try{await navigator.clipboard.writeText(text);$("#copySel").textContent="Copiado ✓"}catch{prompt("Copie o texto:",text)}
   setTimeout(()=>$("#copySel").textContent="Copiar selecionadas",1500);
 };
