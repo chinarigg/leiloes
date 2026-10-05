@@ -44,6 +44,14 @@ tr.rowsel{background:var(--ac2)}
 .mut{color:var(--mut);font-size:12px}.tot{font-weight:600;white-space:nowrap}
 .warn{background:var(--ac2);padding:10px 12px;border-radius:10px;margin-bottom:10px}
 [hidden]{display:none!important}
+.ddwrap{position:relative}
+.dd{position:absolute;top:calc(100% + 4px);left:0;background:var(--card);border:1px solid var(--bd);border-radius:10px;padding:8px;z-index:20;max-height:260px;overflow:auto;min-width:170px;box-shadow:0 8px 24px rgba(0,0,0,.45)}
+.dd label{display:flex;align-items:center;gap:6px;padding:4px 2px;cursor:pointer;white-space:nowrap;font-size:13px}
+.dd label input{accent-color:var(--ac);width:16px;height:16px}
+.dd .mut{padding:4px 2px}
+#pflCount:not(:empty){color:var(--on);background:var(--ac);border-radius:99px;padding:0 6px;margin-left:6px;font-size:11px;font-weight:700}
+.drag{cursor:grab;color:var(--mut);text-align:center;user-select:none;touch-action:none}
+tr.dragover{outline:2px dashed var(--ac);outline-offset:-2px}
 </style>
 </head>
 <body>
@@ -64,7 +72,7 @@ tr.rowsel{background:var(--ac2)}
 <button class="btn g" id="copySel">Copiar selecionadas</button>
 <button class="btn g" id="imp" hidden>Importar planilha (556 cartas)</button>
 </div>
-<div class="tw"><table><thead><tr><th style="width:26px"><input type="checkbox" id="selAll" title="Selecionar tudo"></th><th>CARTA</th><th style="width:90px">PREÇO (R$)</th><th>QUEM LEVOU</th><th style="width:90px">Nº LEILÃO</th><th style="width:30px"></th></tr></thead><tbody id="eb"></tbody></table></div>
+<div class="tw"><table><thead><tr><th style="width:24px"></th><th style="width:26px"><input type="checkbox" id="selAll" title="Selecionar tudo"></th><th>CARTA</th><th style="width:90px">PREÇO (R$)</th><th style="width:70px">QTD</th><th>QUEM LEVOU</th><th style="width:90px">Nº LEILÃO</th><th style="width:30px"></th></tr></thead><tbody id="eb"></tbody></table></div>
 <datalist id="buyers"></datalist>
 </section>
 
@@ -74,7 +82,13 @@ tr.rowsel{background:var(--ac2)}
 </section>
 
 <section id="pessoas" hidden>
-<div class="bar"><input type="search" id="pq" placeholder="Buscar pessoa…"><select id="pfl" multiple style="min-width:160px" title="Ctrl/Cmd+clique (ou arraste) para selecionar vários leilões"></select><button class="btn g" id="pflClear">Limpar leilões</button></div>
+<div class="bar"><input type="search" id="pq" placeholder="Buscar pessoa…">
+<div class="ddwrap" id="pflWrap">
+  <button type="button" class="btn g" id="pflBtn">Filtrar leilões<span id="pflCount"></span> ▾</button>
+  <div class="dd" id="pflDD" hidden></div>
+</div>
+<button class="btn g" id="pflClear" hidden>Limpar leilões</button>
+</div>
 <div class="tw"><table><thead><tr><th>QUEM LEVOU</th><th style="width:140px">CARTAS ARREMATADAS</th><th style="width:140px">VALOR TOTAL</th></tr></thead><tbody id="pb"></tbody></table></div>
 </section>
 </div>
@@ -91,6 +105,7 @@ const norm=s=>(s||"").trim().replace(/\s+/g,' ').toUpperCase();
 const num=v=>{const n=parseFloat(String(v).replace(",","."));return isNaN(n)?null:n};
 const sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
 let S={cards:[],orders:{}},uid=null;
+let pflSel=new Set();
 const st=t=>$("#st").textContent=t;
 const chk=(p,ok)=>p.then(r=>{if(r.error){console.error(r.error);st("erro ao salvar")}else if(ok!==false)st("☁️ salvo")});
 const gkey=(quem,leilao)=>norm(quem)+"‖"+(leilao??"");
@@ -104,7 +119,19 @@ function groups(){
   return g;
 }
 const ord=k=>S.orders[k]||{};
-const saveCard=c=>{st("salvando…");chk(sb.from("cards").upsert({id:c.id,user_id:uid,carta:c.carta,preco:c.preco,quem:c.quem,leilao:c.leilao}))};
+const saveCard=c=>{st("salvando…");chk(sb.from("cards").upsert({id:c.id,user_id:uid,carta:c.carta,preco:c.preco,quem:c.quem,leilao:c.leilao,quantidade:c.quantidade??1,ordem:c.ordem??null}))};
+function persistOrder(){
+  st("salvando…");
+  const rows=S.cards.map((c,i)=>({id:c.id,user_id:uid,carta:c.carta,preco:c.preco,quem:c.quem,leilao:c.leilao,quantidade:c.quantidade??1,ordem:i}));
+  S.cards.forEach((c,i)=>c.ordem=i);
+  (async()=>{
+    for(let i=0;i<rows.length;i+=200){
+      const r=await sb.from("cards").upsert(rows.slice(i,i+200));
+      if(r.error){console.error(r.error);st("erro ao salvar ordem");return}
+    }
+    st("☁️ salvo");
+  })();
+}
 function setOrd(quem,leilao,patch){
   const k=gkey(quem,leilao);
   const o=S.orders[k]={...ord(k),...patch};renderTiles();st("salvando…");
@@ -112,9 +139,9 @@ function setOrd(quem,leilao,patch){
 }
 async function load(){
   st("carregando…");
-  const [c,o]=await Promise.all([sb.from("cards").select("*").order("created_at").order("id"),sb.from("orders").select("*")]);
+  const [c,o]=await Promise.all([sb.from("cards").select("*").order("ordem",{nullsFirst:false}).order("created_at").order("id"),sb.from("orders").select("*")]);
   if(c.error||o.error){st("erro ao carregar");console.error(c.error||o.error);return}
-  S.cards=c.data.map(r=>({id:r.id,carta:r.carta,preco:r.preco,quem:r.quem,leilao:r.leilao}));
+  S.cards=c.data.map(r=>({id:r.id,carta:r.carta,preco:r.preco,quem:r.quem,leilao:r.leilao,quantidade:r.quantidade??1,ordem:r.ordem}));
   S.orders={};o.data.forEach(r=>S.orders[gkey(r.quem,r.leilao)]={pago:r.pago,cobranca:r.cobranca,frete:r.frete,enviado:r.enviado,obs:r.obs,concluido:r.concluido});
   all();st("☁️ salvo");
 }
@@ -126,7 +153,7 @@ function renderTiles(){
   const lf=activeLeilaoFilter(),g=groups();let tot=0,pago=0,abertos=0,cartas=0;
   Object.entries(g).forEach(([k,grp])=>{
     if(lf!=null&&grp.leilao!==lf)return;
-    const v=grp.cards.reduce((a,c)=>a+(c.preco||0),0),o=ord(k);tot+=v;cartas+=grp.cards.length;
+    const v=grp.cards.reduce((a,c)=>a+(c.preco||0)*(c.quantidade||1),0),o=ord(k);tot+=v;cartas+=grp.cards.reduce((a,c)=>a+(c.quantidade||1),0);
     if(o.pago)pago+=v;if(!o.concluido)abertos++;
   });
   $("#tiles").innerHTML=[["Cartas arrematadas",cartas],["Total dos leilões",brl(tot)],["Já recebido",brl(pago)],["A receber",brl(tot-pago)],["Pedidos em aberto",abertos]]
@@ -143,38 +170,41 @@ function renderFilter(){
   $("#rfl").value=ls.includes(+curR)?curR:"";
   const buyers=[...new Set(S.cards.map(c=>norm(c.quem)).filter(Boolean))].sort();
   $("#buyers").innerHTML=buyers.map(n=>`<option value="${esc(n)}">`).join("");
-  const curP=new Set([...$("#pfl").selectedOptions].map(o=>o.value));
-  $("#pfl").innerHTML=ls.map(l=>`<option value="${l}">leilão ${l}</option>`).join("");
-  $("#pfl").size=Math.min(Math.max(ls.length,1),6);
-  [...$("#pfl").options].forEach(o=>o.selected=curP.has(o.value));
+  [...pflSel].forEach(v=>{if(!ls.includes(v))pflSel.delete(v)});
+  $("#pflDD").innerHTML=ls.length?ls.map(l=>`<label><input type="checkbox" value="${l}" ${pflSel.has(l)?"checked":""}> leilão ${l}</label>`).join(""):'<div class="mut">Nenhum leilão ainda.</div>';
+  $("#pflCount").textContent=pflSel.size?pflSel.size:"";
+  $("#pflClear").hidden=!pflSel.size;
 }
 function renderStock(){
   const q=norm($("#q").value),fl=$("#fl").value;
   const rows=S.cards.filter(c=>(!fl||String(c.leilao)===fl)&&(!q||norm(c.carta+" "+c.quem).includes(q)));
+  const reorderable=rows.length>1;
   $("#eb").innerHTML=rows.map(c=>`<tr data-id="${c.id}">
+   <td class="drag" draggable="${reorderable}" title="${reorderable?"Arraste para reordenar":""}">${reorderable?"⠿":""}</td>
    <td><input type="checkbox" data-sel></td>
    <td><input type="text" data-f="carta" value="${esc(c.carta)}"></td>
    <td><input type="text" inputmode="decimal" data-f="preco" value="${c.preco??""}"></td>
+   <td><input type="text" inputmode="numeric" data-f="quantidade" value="${c.quantidade??1}"></td>
    <td><input type="text" data-f="quem" list="buyers" value="${esc(c.quem)}"></td>
    <td><input type="text" inputmode="numeric" data-f="leilao" value="${c.leilao??""}"></td>
-   <td><button class="x" data-del title="Remover">✕</button></td></tr>`).join("")||'<tr><td colspan="6" class="mut">Nenhuma carta ainda.</td></tr>';
+   <td><button class="x" data-del title="Remover">✕</button></td></tr>`).join("")||'<tr><td colspan="8" class="mut">Nenhuma carta ainda.</td></tr>';
   $("#imp").hidden=S.cards.length>0;
   $("#selAll").checked=false;
 }
 function msg(grp){
-  const cs=grp.cards,v=cs.reduce((a,c)=>a+(c.preco||0),0),f=ord(gkey(grp.quem,grp.leilao)).frete||0;
-  return `oiii ✨ suas cartinhas do leilão ${grp.leilao??"-"}:\n${cs.map(c=>"• "+c.carta+(c.preco?` (${brl(c.preco)})`:"")).join("\n")}\n\nvalor das cartas: ${brl(v)}${f?`\nfrete: ${brl(f)}\ntotal: ${brl(v+f)}`:""}\n\n${PIX}\n\nvou só te pedir pra me mandar o comprovante aqui quando fizer o pagamento, ok?\nlembrando que o envio pode ser solicitado a qualquer momento, basta me sinalizar se quer o envio agora ou acumular para envio posterior 💛`;
+  const cs=grp.cards,v=cs.reduce((a,c)=>a+(c.preco||0)*(c.quantidade||1),0),f=ord(gkey(grp.quem,grp.leilao)).frete||0;
+  return `oiii ✨ suas cartinhas do leilão ${grp.leilao??"-"}:\n${cs.map(c=>"• "+c.carta+(c.quantidade>1?` x${c.quantidade}`:"")+(c.preco?` (${brl(c.preco)})`:"")).join("\n")}\n\nvalor das cartas: ${brl(v)}${f?`\nfrete: ${brl(f)}\ntotal: ${brl(v+f)}`:""}\n\n${PIX}\n\nvou só te pedir pra me mandar o comprovante aqui quando fizer o pagamento, ok?\nlembrando que o envio pode ser solicitado a qualquer momento, basta me sinalizar se quer o envio agora ou acumular para envio posterior 💛`;
 }
 function renderReport(){
   const g=groups(),f=$("#rf").value,q=norm($("#rq").value),fl=$("#rfl").value;
   const list=Object.keys(g).filter(k=>(!q||g[k].quem.includes(q))&&(!fl||String(g[k].leilao)===fl)&&(f==="t"||(f==="c")===!!ord(k).concluido))
     .sort((a,b)=>(!!ord(a).concluido-!!ord(b).concluido)||g[a].quem.localeCompare(g[b].quem)||((g[a].leilao??0)-(g[b].leilao??0)));
-  $("#rb").innerHTML=list.map(k=>{const grp=g[k],o=ord(k),cs=grp.cards,v=cs.reduce((a,c)=>a+(c.preco||0),0),qk=esc(grp.quem);
+  $("#rb").innerHTML=list.map(k=>{const grp=g[k],o=ord(k),cs=grp.cards,v=cs.reduce((a,c)=>a+(c.preco||0)*(c.quantidade||1),0),qty=cs.reduce((a,c)=>a+(c.quantidade||1),0),qk=esc(grp.quem);
    const cb=(f,on)=>`<td><input type="checkbox" data-o="${f}" ${on?"checked":""}></td>`;
    return `<tr class="${o.concluido?"done":""}" data-quem="${qk}" data-leilao="${grp.leilao??""}">
    <td><b>${qk}</b><br><button class="btn g" data-copy style="margin-top:4px;font-size:12px;padding:3px 8px">Copiar cobrança</button></td>
    <td>${grp.leilao??"-"}</td>
-   <td>${cs.map(c=>esc(c.carta)).join(", ")}<div class="mut">${cs.length} carta${cs.length>1?"s":""}</div></td>
+   <td>${cs.map(c=>esc(c.carta)+(c.quantidade>1?` (x${c.quantidade})`:"")).join(", ")}<div class="mut">${qty} carta${qty>1?"s":""}</div></td>
    <td class="tot">${brl(v)}${o.frete?`<div class="mut">+ frete = ${brl(v+o.frete)}</div>`:""}</td>
    ${cb("pago",o.pago)}${cb("cobranca",o.cobranca)}
    <td><input type="text" inputmode="decimal" data-o="frete" value="${o.frete??""}" style="width:80px"></td>
@@ -184,14 +214,15 @@ function renderReport(){
 }
 function renderPeople(){
   const q=norm($("#pq").value);
-  const sel=new Set([...$("#pfl").selectedOptions].map(o=>+o.value));
-  $("#pflClear").style.display=sel.size?"":"none";
+  const sel=pflSel;
+  $("#pflClear").hidden=!sel.size;
+  $("#pflCount").textContent=sel.size?sel.size:"";
   const byPerson={};
   S.cards.forEach(c=>{
     const n=norm(c.quem);if(!n)return;
     if(sel.size&&!sel.has(c.leilao))return;
     const p=byPerson[n]=byPerson[n]||{cartas:0,valor:0};
-    p.cartas++;p.valor+=c.preco||0;
+    p.cartas+=c.quantidade||1;p.valor+=(c.preco||0)*(c.quantidade||1);
   });
   const list=Object.keys(byPerson).filter(n=>!q||n.includes(q)).sort((a,b)=>byPerson[b].cartas-byPerson[a].cartas||a.localeCompare(b));
   $("#pb").innerHTML=list.map(n=>`<tr><td><b>${esc(n)}</b></td><td>${byPerson[n].cartas}</td><td>${brl(byPerson[n].valor)}</td></tr>`).join("")||'<tr><td colspan="3" class="mut">Nenhuma carta arrematada ainda'+(sel.size?" nesses leilões.":".")+'</td></tr>';
@@ -203,6 +234,7 @@ $("#eb").addEventListener("change",e=>{
   if(t.matches("[data-sel]")){t.closest("tr").classList.toggle("rowsel",t.checked);return;}
   const tr=t.closest("tr"),c=S.cards.find(x=>x.id===tr.dataset.id),f=t.dataset.f;if(!c||!f)return;
   if(f==="preco")c.preco=num(t.value);else if(f==="leilao")c.leilao=num(t.value);
+  else if(f==="quantidade"){c.quantidade=Math.max(1,Math.round(num(t.value)||1));t.value=c.quantidade}
   else if(f==="quem"){c.quem=norm(t.value);t.value=c.quem}else c.carta=t.value.trim();
   saveCard(c);renderTiles();renderFilter();renderReport();renderPeople();
 });
@@ -211,7 +243,7 @@ $("#copySel").onclick=async()=>{
   const ids=[...document.querySelectorAll('#eb input[data-sel]:checked')].map(cb=>cb.closest("tr").dataset.id);
   if(!ids.length){$("#copySel").textContent="Selecione ao menos 1";setTimeout(()=>$("#copySel").textContent="Copiar selecionadas",1500);return;}
   const chosen=ids.map(id=>S.cards.find(c=>c.id===id)).filter(Boolean);
-  const text=chosen.map(c=>`• ${c.carta}${c.preco!=null?` — ${brl(c.preco)}`:""}`).join("\n");
+  const text=chosen.map(c=>`${c.carta} | ${c.quantidade??1} | ${c.preco!=null?brl((c.preco||0)*(c.quantidade||1)):""}`).join("\n");
   try{await navigator.clipboard.writeText(text);$("#copySel").textContent="Copiado ✓"}catch{prompt("Copie o texto:",text)}
   setTimeout(()=>$("#copySel").textContent="Copiar selecionadas",1500);
 };
@@ -233,7 +265,7 @@ $("#rb").addEventListener("click",async e=>{
 });
 function addCard(focus){
   const flv=$("#fl").value,last=S.cards[S.cards.length-1];
-  const nc={id:crypto.randomUUID(),carta:"",preco:null,quem:"",leilao:flv?num(flv):(last?last.leilao:null)};
+  const nc={id:crypto.randomUUID(),carta:"",preco:null,quantidade:1,quem:"",leilao:flv?num(flv):(last?last.leilao:null)};
   S.cards.push(nc);saveCard(nc);$("#q").value="";renderStock();
   if(focus){const i=[...document.querySelectorAll('#eb input[data-f="carta"]')].pop();i&&i.focus();}
 }
@@ -244,7 +276,7 @@ $("#eb").addEventListener("paste",e=>{
   const lines=text.replace(/\r/g,"").split("\n").filter((l,i,a)=>l!==""||i<a.length-1);
   if(lines.length<=1&&!lines[0]?.includes("\t"))return; // deixa o paste normal do navegador acontecer
   e.preventDefault();
-  const cols=["carta","preco","quem","leilao"];
+  const cols=["carta","preco","quantidade","quem","leilao"];
   const startCol=cols.indexOf(t.dataset.f);
   const startRow=cellPos(t).ri;
   const flv=$("#fl").value;
@@ -253,12 +285,13 @@ $("#eb").addEventListener("paste",e=>{
     let row=$("#eb").children[startRow+li],card;
     if(row)card=S.cards.find(c=>c.id===row.dataset.id);
     if(!card){
-      card={id:crypto.randomUUID(),carta:"",preco:null,quem:"",leilao:flv?num(flv):null};
+      card={id:crypto.randomUUID(),carta:"",preco:null,quantidade:1,quem:"",leilao:flv?num(flv):null};
       S.cards.push(card);
     }
     vals.forEach((v,vi)=>{
       const col=cols[startCol+vi];if(!col)return;
       if(col==="preco")card.preco=num(v);else if(col==="leilao")card.leilao=num(v);
+      else if(col==="quantidade")card.quantidade=Math.max(1,Math.round(num(v)||1));
       else if(col==="quem")card.quem=norm(v);else card.carta=v.trim();
     });
     saveCard(card);
@@ -313,8 +346,52 @@ $("#rb").addEventListener("keydown",arrowNav);
 ["#q","#fl"].forEach(s=>$(s).addEventListener("input",()=>{renderStock();renderTiles();}));
 ["#rf","#rfl","#rq"].forEach(s=>$(s).addEventListener("input",()=>{renderReport();renderTiles();}));
 $("#pq").addEventListener("input",renderPeople);
-$("#pfl").addEventListener("change",renderPeople);
-$("#pflClear").onclick=()=>{[...$("#pfl").options].forEach(o=>o.selected=false);renderPeople();};
+$("#pflBtn").onclick=e=>{e.stopPropagation();$("#pflDD").hidden=!$("#pflDD").hidden;};
+$("#pflDD").addEventListener("click",e=>e.stopPropagation());
+$("#pflDD").addEventListener("change",e=>{
+  if(e.target.type!=="checkbox")return;
+  const v=+e.target.value;
+  if(e.target.checked)pflSel.add(v);else pflSel.delete(v);
+  renderPeople();
+});
+document.addEventListener("click",()=>{$("#pflDD").hidden=true;});
+$("#pflClear").onclick=()=>{pflSel.clear();renderFilter();renderPeople();};
+
+let dragId=null;
+$("#eb").addEventListener("dragstart",e=>{
+  const tr=e.target.closest("tr");
+  if(!e.target.matches(".drag")||!tr){e.preventDefault();return;}
+  dragId=tr.dataset.id;
+  e.dataTransfer.effectAllowed="move";
+  e.dataTransfer.setData("text/plain",dragId);
+});
+$("#eb").addEventListener("dragover",e=>{
+  const tr=e.target.closest("tr");
+  if(!tr||!dragId||tr.dataset.id===dragId)return;
+  e.preventDefault();
+  e.dataTransfer.dropEffect="move";
+  document.querySelectorAll("#eb tr.dragover").forEach(r=>r.classList.remove("dragover"));
+  tr.classList.add("dragover");
+});
+$("#eb").addEventListener("dragleave",e=>{
+  const tr=e.target.closest("tr");if(tr)tr.classList.remove("dragover");
+});
+$("#eb").addEventListener("drop",e=>{
+  const tr=e.target.closest("tr");
+  document.querySelectorAll("#eb tr.dragover").forEach(r=>r.classList.remove("dragover"));
+  if(!tr||!dragId||tr.dataset.id===dragId)return;
+  e.preventDefault();
+  const fromI=S.cards.findIndex(c=>c.id===dragId),toI=S.cards.findIndex(c=>c.id===tr.dataset.id);
+  if(fromI<0||toI<0)return;
+  const rect=tr.getBoundingClientRect(),before=e.clientY<rect.top+rect.height/2;
+  const [moved]=S.cards.splice(fromI,1);
+  let insertAt=S.cards.findIndex(c=>c.id===tr.dataset.id);
+  if(!before)insertAt++;
+  S.cards.splice(insertAt,0,moved);
+  dragId=null;
+  renderStock();persistOrder();
+});
+$("#eb").addEventListener("dragend",()=>{dragId=null;document.querySelectorAll("#eb tr.dragover").forEach(r=>r.classList.remove("dragover"));});
 document.querySelectorAll(".tab").forEach(b=>b.onclick=()=>{
   document.querySelectorAll(".tab").forEach(x=>x.classList.toggle("on",x===b));
   ["estoque","relatorio","pessoas"].forEach(id=>$("#"+id).hidden=id!==b.dataset.t);
