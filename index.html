@@ -109,12 +109,23 @@ let pflSel=new Set();
 const st=t=>$("#st").textContent=t;
 const chk=(p,ok)=>p.then(r=>{if(r.error){console.error(r.error);st("erro ao salvar")}else if(ok!==false)st("☁️ salvo")});
 const gkey=(quem,leilao)=>norm(quem)+"‖"+(leilao??"");
+function cardShares(c){
+  // cada nome em "quem levou" (separado por vírgula) leva exatamente 1 unidade.
+  // se a quantidade for maior que o nº de nomes, o restante ainda não foi
+  // arrematado e não entra no relatório/pessoas (nem no valor). Pra uma mesma
+  // pessoa levar mais de 1 unidade, repete o nome (ex: "ANA, ANA").
+  const names=String(c.quem||"").split(",").map(norm).filter(Boolean);
+  const qty=c.quantidade||1;
+  return names.slice(0,qty).map(n=>({quem:n,quantidade:1}));
+}
 function groups(){
   const g={};
   S.cards.forEach(c=>{
-    const n=norm(c.quem);if(!n)return;
-    const k=gkey(n,c.leilao);
-    (g[k]=g[k]||{quem:n,leilao:c.leilao,cards:[]}).cards.push(c);
+    cardShares(c).forEach(sh=>{
+      const n=sh.quem;if(!n)return;
+      const k=gkey(n,c.leilao);
+      (g[k]=g[k]||{quem:n,leilao:c.leilao,cards:[]}).cards.push({...c,quem:n,quantidade:sh.quantidade});
+    });
   });
   return g;
 }
@@ -168,7 +179,7 @@ function renderFilter(){
   $("#fl").value=ls.includes(+cur)?cur:"";
   $("#rfl").innerHTML='<option value="">Todos os leilões</option>'+opts;
   $("#rfl").value=ls.includes(+curR)?curR:"";
-  const buyers=[...new Set(S.cards.map(c=>norm(c.quem)).filter(Boolean))].sort();
+  const buyers=[...new Set(S.cards.flatMap(c=>String(c.quem||"").split(",").map(norm)).filter(Boolean))].sort();
   $("#buyers").innerHTML=buyers.map(n=>`<option value="${esc(n)}">`).join("");
   [...pflSel].forEach(v=>{if(!ls.includes(v))pflSel.delete(v)});
   $("#pflDD").innerHTML=ls.length?ls.map(l=>`<label><input type="checkbox" value="${l}" ${pflSel.has(l)?"checked":""}> leilão ${l}</label>`).join(""):'<div class="mut">Nenhum leilão ainda.</div>';
