@@ -230,10 +230,12 @@ function renderPeople(){
   $("#pflCount").textContent=sel.size?sel.size:"";
   const byPerson={};
   S.cards.forEach(c=>{
-    const n=norm(c.quem);if(!n)return;
     if(sel.size&&!sel.has(c.leilao))return;
-    const p=byPerson[n]=byPerson[n]||{cartas:0,valor:0};
-    p.cartas+=c.quantidade||1;p.valor+=(c.preco||0)*(c.quantidade||1);
+    cardShares(c).forEach(sh=>{
+      if(!sh.quem)return;
+      const p=byPerson[sh.quem]=byPerson[sh.quem]||{cartas:0,valor:0};
+      p.cartas+=sh.quantidade;p.valor+=(c.preco||0)*sh.quantidade;
+    });
   });
   const list=Object.keys(byPerson).filter(n=>!q||n.includes(q)).sort((a,b)=>byPerson[b].cartas-byPerson[a].cartas||a.localeCompare(b));
   $("#pb").innerHTML=list.map(n=>`<tr><td><b>${esc(n)}</b></td><td>${byPerson[n].cartas}</td><td>${brl(byPerson[n].valor)}</td></tr>`).join("")||'<tr><td colspan="3" class="mut">Nenhuma carta arrematada ainda'+(sel.size?" nesses leilões.":".")+'</td></tr>';
