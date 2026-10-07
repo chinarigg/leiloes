@@ -76,8 +76,8 @@ tr.dragover{outline:2px dashed var(--ac);outline-offset:-2px}
 <button class="btn g" id="copySel">Copiar selecionadas</button>
 <button class="btn g" id="imp" hidden>Importar planilha (556 cartas)</button>
 </div>
-<div class="mut" style="margin:-6px 0 8px">Preencha os 4 lances e marque a caixinha do lance vencedor (24h sem arremate direto = vale o maior).</div>
-<div class="tw"><table><thead><tr><th style="width:24px"></th><th style="width:26px"><input type="checkbox" id="selAll" title="Selecionar tudo"></th><th>CARTA</th><th style="width:72px" title="Lance 1">LANCE 1</th><th style="width:72px" title="Lance 2">LANCE 2</th><th style="width:72px" title="Lance 3">LANCE 3</th><th style="width:72px" title="Lance 4">LANCE 4</th><th style="width:70px">QTD</th><th>QUEM LEVOU</th><th style="width:90px">Nº LEILÃO</th><th style="width:30px"></th></tr></thead><tbody id="eb"></tbody></table></div>
+<div class="mut" style="margin:-6px 0 8px">Preencha os 4 valores e marque a caixinha do valor vencedor (24h sem arremate direto = vale o maior).</div>
+<div class="tw"><table><thead><tr><th style="width:24px"></th><th style="width:26px"><input type="checkbox" id="selAll" title="Selecionar tudo"></th><th>CARTA</th><th style="width:72px" title="Valor 1">VALOR 1</th><th style="width:72px" title="Valor 2">VALOR 2</th><th style="width:72px" title="Valor 3">VALOR 3</th><th style="width:72px" title="Valor 4">VALOR 4</th><th>QUEM LEVOU</th><th style="width:90px">Nº LEILÃO</th><th style="width:70px">QTD</th><th style="width:30px"></th></tr></thead><tbody id="eb"></tbody></table></div>
 <datalist id="buyers"></datalist>
 </section>
 
@@ -205,10 +205,10 @@ function renderStock(){
    <td class="drag" draggable="${reorderable}" title="${reorderable?"Arraste para reordenar":""}">${reorderable?"⠿":""}</td>
    <td><input type="checkbox" data-sel></td>
    <td><input type="text" data-f="carta" value="${esc(c.carta)}"></td>
-   ${[0,1,2,3].map(i=>`<td class="lance${c.lanceSel===i?" won":""}"><input type="checkbox" data-lancesel="${i}" title="Marcar lance ${i+1} como vencedor" ${c.lanceSel===i?"checked":""}><input type="text" inputmode="decimal" data-f="lance${i+1}" value="${c["lance"+(i+1)]??""}"></td>`).join("")}
-   <td><input type="text" inputmode="numeric" data-f="quantidade" value="${c.quantidade??1}"></td>
+   ${[0,1,2,3].map(i=>`<td class="lance${c.lanceSel===i?" won":""}"><input type="checkbox" data-lancesel="${i}" title="Marcar valor ${i+1} como vencedor" ${c.lanceSel===i?"checked":""}><input type="text" inputmode="decimal" data-f="lance${i+1}" value="${c["lance"+(i+1)]??""}"></td>`).join("")}
    <td><input type="text" data-f="quem" list="buyers" value="${esc(c.quem)}"></td>
    <td><input type="text" inputmode="numeric" data-f="leilao" value="${c.leilao??""}"></td>
+   <td><input type="text" inputmode="numeric" data-f="quantidade" value="${c.quantidade??1}"></td>
    <td><button class="x" data-del title="Remover">✕</button></td></tr>`).join("")||'<tr><td colspan="11" class="mut">Nenhuma carta ainda.</td></tr>';
   $("#imp").hidden=S.cards.length>0;
   $("#selAll").checked=false;
@@ -315,10 +315,10 @@ $("#add").onclick=()=>addCard(true);
 $("#eb").addEventListener("paste",e=>{
   const t=e.target;if(!t.dataset.f)return;
   const text=(e.clipboardData||window.clipboardData).getData("text/plain");
-  const lines=text.replace(/\r/g,"").split("\n").filter((l,i,a)=>l!==""||i<a.length-1);
+  const lines=text.replace(/\r/g,"").split("\n").filter(l=>l.trim()!=="");
   if(lines.length<=1&&!lines[0]?.includes("\t"))return; // deixa o paste normal do navegador acontecer
   e.preventDefault();
-  const cols=["carta","lance1","lance2","lance3","lance4","quantidade","quem","leilao"];
+  const cols=["carta","lance1","lance2","lance3","lance4","quem","leilao","quantidade"];
   const startCol=cols.indexOf(t.dataset.f);
   const startRow=cellPos(t).ri;
   const flv=$("#fl").value;
@@ -375,7 +375,7 @@ function verticalTab(e){
   const ci=[...row.children].indexOf(cell),ri=[...tbody.children].indexOf(row);
   const nextRow=tbody.children[e.shiftKey?ri-1:ri+1];
   if(!nextRow){
-    if(!e.shiftKey&&tbody===$("#eb")&&cell.querySelector('[data-f="leilao"]')&&e.target.value.trim()!==""){
+    if(!e.shiftKey&&tbody===$("#eb")&&cell.querySelector('[data-f="quantidade"]')&&e.target.value.trim()!==""){
       e.preventDefault();addCard(true);
     }
     return;
