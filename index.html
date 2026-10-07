@@ -51,6 +51,10 @@ tr.rowsel{background:var(--ac2)}
 .dd .mut{padding:4px 2px}
 #pflCount:not(:empty){color:var(--on);background:var(--ac);border-radius:99px;padding:0 6px;margin-left:6px;font-size:11px;font-weight:700}
 .drag{cursor:grab;color:var(--mut);text-align:center;user-select:none;touch-action:none}
+.lance{display:flex;align-items:center;gap:3px}
+.lance input[type=checkbox]{width:15px;height:15px;flex:none}
+.lance input[type=text]{width:100%;min-width:40px}
+.lance.won{background:var(--ac2);border-radius:6px}
 tr.dragover{outline:2px dashed var(--ac);outline-offset:-2px}
 </style>
 </head>
@@ -72,7 +76,8 @@ tr.dragover{outline:2px dashed var(--ac);outline-offset:-2px}
 <button class="btn g" id="copySel">Copiar selecionadas</button>
 <button class="btn g" id="imp" hidden>Importar planilha (556 cartas)</button>
 </div>
-<div class="tw"><table><thead><tr><th style="width:24px"></th><th style="width:26px"><input type="checkbox" id="selAll" title="Selecionar tudo"></th><th>CARTA</th><th style="width:90px">PREÇO (R$)</th><th style="width:70px">QTD</th><th>QUEM LEVOU</th><th style="width:90px">Nº LEILÃO</th><th style="width:30px"></th></tr></thead><tbody id="eb"></tbody></table></div>
+<div class="mut" style="margin:-6px 0 8px">Preencha os 4 lances e marque a caixinha do lance vencedor (24h sem arremate direto = vale o maior).</div>
+<div class="tw"><table><thead><tr><th style="width:24px"></th><th style="width:26px"><input type="checkbox" id="selAll" title="Selecionar tudo"></th><th>CARTA</th><th style="width:72px" title="Lance 1">LANCE 1</th><th style="width:72px" title="Lance 2">LANCE 2</th><th style="width:72px" title="Lance 3">LANCE 3</th><th style="width:72px" title="Lance 4">LANCE 4</th><th style="width:70px">QTD</th><th>QUEM LEVOU</th><th style="width:90px">Nº LEILÃO</th><th style="width:30px"></th></tr></thead><tbody id="eb"></tbody></table></div>
 <datalist id="buyers"></datalist>
 </section>
 
@@ -130,7 +135,7 @@ function groups(){
   return g;
 }
 const ord=k=>S.orders[k]||{};
-const saveCard=c=>{st("salvando…");chk(sb.from("cards").upsert({id:c.id,user_id:uid,carta:c.carta,preco:c.preco,quem:c.quem,leilao:c.leilao,quantidade:c.quantidade??1,ordem:c.ordem??null}))};
+const saveCard=c=>{st("salvando…");chk(sb.from("cards").upsert({id:c.id,user_id:uid,carta:c.carta,preco:c.preco,quem:c.quem,leilao:c.leilao,quantidade:c.quantidade??1,ordem:c.ordem??null,lance1:c.lance1??null,lance2:c.lance2??null,lance3:c.lance3??null,lance4:c.lance4??null,lance_sel:c.lanceSel??null}))};
 function persistOrder(){
   st("salvando…");
   const rows=S.cards.map((c,i)=>({id:c.id,user_id:uid,carta:c.carta,preco:c.preco,quem:c.quem,leilao:c.leilao,quantidade:c.quantidade??1,ordem:i}));
@@ -152,7 +157,13 @@ async function load(){
   st("carregando…");
   const [c,o]=await Promise.all([sb.from("cards").select("*").order("ordem",{nullsFirst:false}).order("created_at").order("id"),sb.from("orders").select("*")]);
   if(c.error||o.error){st("erro ao carregar");console.error(c.error||o.error);return}
-  S.cards=c.data.map(r=>({id:r.id,carta:r.carta,preco:r.preco,quem:r.quem,leilao:r.leilao,quantidade:r.quantidade??1,ordem:r.ordem}));
+  S.cards=c.data.map(r=>{
+    const lanceSel=r.lance_sel??null;
+    const lances=[r.lance1??null,r.lance2??null,r.lance3??null,r.lance4??null];
+    const preco=lanceSel!=null?(lances[lanceSel]??null):(r.preco??null);
+    return{id:r.id,carta:r.carta,preco,quem:r.quem,leilao:r.leilao,quantidade:r.quantidade??1,ordem:r.ordem,
+      lance1:lances[0],lance2:lances[1],lance3:lances[2],lance4:lances[3],lanceSel};
+  });
   S.orders={};o.data.forEach(r=>S.orders[gkey(r.quem,r.leilao)]={pago:r.pago,cobranca:r.cobranca,frete:r.frete,enviado:r.enviado,obs:r.obs,concluido:r.concluido});
   all();st("☁️ salvo");
 }
@@ -194,11 +205,11 @@ function renderStock(){
    <td class="drag" draggable="${reorderable}" title="${reorderable?"Arraste para reordenar":""}">${reorderable?"⠿":""}</td>
    <td><input type="checkbox" data-sel></td>
    <td><input type="text" data-f="carta" value="${esc(c.carta)}"></td>
-   <td><input type="text" inputmode="decimal" data-f="preco" value="${c.preco??""}"></td>
+   ${[0,1,2,3].map(i=>`<td class="lance${c.lanceSel===i?" won":""}"><input type="checkbox" data-lancesel="${i}" title="Marcar lance ${i+1} como vencedor" ${c.lanceSel===i?"checked":""}><input type="text" inputmode="decimal" data-f="lance${i+1}" value="${c["lance"+(i+1)]??""}"></td>`).join("")}
    <td><input type="text" inputmode="numeric" data-f="quantidade" value="${c.quantidade??1}"></td>
    <td><input type="text" data-f="quem" list="buyers" value="${esc(c.quem)}"></td>
    <td><input type="text" inputmode="numeric" data-f="leilao" value="${c.leilao??""}"></td>
-   <td><button class="x" data-del title="Remover">✕</button></td></tr>`).join("")||'<tr><td colspan="8" class="mut">Nenhuma carta ainda.</td></tr>';
+   <td><button class="x" data-del title="Remover">✕</button></td></tr>`).join("")||'<tr><td colspan="11" class="mut">Nenhuma carta ainda.</td></tr>';
   $("#imp").hidden=S.cards.length>0;
   $("#selAll").checked=false;
 }
@@ -245,8 +256,26 @@ const all=()=>{renderTiles();renderFilter();renderStock();renderReport();renderP
 $("#eb").addEventListener("change",e=>{
   const t=e.target;
   if(t.matches("[data-sel]")){t.closest("tr").classList.toggle("rowsel",t.checked);return;}
-  const tr=t.closest("tr"),c=S.cards.find(x=>x.id===tr.dataset.id),f=t.dataset.f;if(!c||!f)return;
-  if(f==="preco")c.preco=num(t.value);else if(f==="leilao")c.leilao=num(t.value);
+  const tr=t.closest("tr"),c=S.cards.find(x=>x.id===tr.dataset.id);if(!c)return;
+  if(t.matches("[data-lancesel]")){
+    const idx=+t.dataset.lancesel;
+    if(t.checked){
+      c.lanceSel=idx;
+      tr.querySelectorAll("[data-lancesel]").forEach(cb=>{if(cb!==t)cb.checked=false;});
+    }else if(c.lanceSel===idx)c.lanceSel=null;
+    c.preco=c.lanceSel!=null?(c["lance"+(c.lanceSel+1)]??null):null;
+    saveCard(c);renderStock();renderTiles();renderFilter();renderReport();renderPeople();
+    return;
+  }
+  const f=t.dataset.f;if(!f)return;
+  if(f.startsWith("lance")){
+    const idx=+f.slice(5)-1;
+    c[f]=num(t.value);
+    if(c.lanceSel===idx)c.preco=c[f];
+    saveCard(c);renderTiles();renderFilter();renderReport();renderPeople();
+    return;
+  }
+  if(f==="leilao")c.leilao=num(t.value);
   else if(f==="quantidade"){c.quantidade=Math.max(1,Math.round(num(t.value)||1));t.value=c.quantidade}
   else if(f==="quem"){c.quem=norm(t.value);t.value=c.quem}else c.carta=t.value.trim();
   saveCard(c);renderTiles();renderFilter();renderReport();renderPeople();
@@ -278,7 +307,7 @@ $("#rb").addEventListener("click",async e=>{
 });
 function addCard(focus){
   const flv=$("#fl").value,last=S.cards[S.cards.length-1];
-  const nc={id:crypto.randomUUID(),carta:"",preco:null,quantidade:1,quem:"",leilao:flv?num(flv):(last?last.leilao:null)};
+  const nc={id:crypto.randomUUID(),carta:"",preco:null,quantidade:1,quem:"",leilao:flv?num(flv):(last?last.leilao:null),lance1:null,lance2:null,lance3:null,lance4:null,lanceSel:null};
   S.cards.push(nc);saveCard(nc);$("#q").value="";renderStock();
   if(focus){const i=[...document.querySelectorAll('#eb input[data-f="carta"]')].pop();i&&i.focus();}
 }
@@ -289,7 +318,7 @@ $("#eb").addEventListener("paste",e=>{
   const lines=text.replace(/\r/g,"").split("\n").filter((l,i,a)=>l!==""||i<a.length-1);
   if(lines.length<=1&&!lines[0]?.includes("\t"))return; // deixa o paste normal do navegador acontecer
   e.preventDefault();
-  const cols=["carta","preco","quantidade","quem","leilao"];
+  const cols=["carta","lance1","lance2","lance3","lance4","quantidade","quem","leilao"];
   const startCol=cols.indexOf(t.dataset.f);
   const startRow=cellPos(t).ri;
   const flv=$("#fl").value;
@@ -298,15 +327,17 @@ $("#eb").addEventListener("paste",e=>{
     let row=$("#eb").children[startRow+li],card;
     if(row)card=S.cards.find(c=>c.id===row.dataset.id);
     if(!card){
-      card={id:crypto.randomUUID(),carta:"",preco:null,quantidade:1,quem:"",leilao:flv?num(flv):null};
+      card={id:crypto.randomUUID(),carta:"",preco:null,quantidade:1,quem:"",leilao:flv?num(flv):null,lance1:null,lance2:null,lance3:null,lance4:null,lanceSel:null};
       S.cards.push(card);
     }
     vals.forEach((v,vi)=>{
       const col=cols[startCol+vi];if(!col)return;
-      if(col==="preco")card.preco=num(v);else if(col==="leilao")card.leilao=num(v);
+      if(col==="leilao")card.leilao=num(v);
+      else if(col.startsWith("lance"))card[col]=num(v);
       else if(col==="quantidade")card.quantidade=Math.max(1,Math.round(num(v)||1));
       else if(col==="quem")card.quem=norm(v);else card.carta=v.trim();
     });
+    if(card.lanceSel!=null)card.preco=card["lance"+(card.lanceSel+1)]??null;
     saveCard(card);
   });
   renderStock();renderTiles();renderFilter();renderPeople();
