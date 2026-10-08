@@ -75,6 +75,7 @@ tr.dragover{outline:2px dashed var(--ac);outline-offset:-2px}
 <button class="btn" id="add">+ Adicionar carta</button>
 <button class="btn g" id="copySel">Copiar selecionadas</button>
 <button class="btn g" id="imp" hidden>Importar planilha (556 cartas)</button>
+<button class="btn g" id="cleanEmpty">Limpar linhas vazias</button>
 </div>
 <div class="mut" style="margin:-6px 0 8px">Preencha os 4 valores e marque a caixinha do valor vencedor (24h sem arremate direto = vale o maior).</div>
 <div class="tw"><table><thead><tr><th style="width:24px"></th><th style="width:26px"><input type="checkbox" id="selAll" title="Selecionar tudo"></th><th>CARTA</th><th style="width:72px" title="Valor 1">VALOR 1</th><th style="width:72px" title="Valor 2">VALOR 2</th><th style="width:72px" title="Valor 3">VALOR 3</th><th style="width:72px" title="Valor 4">VALOR 4</th><th>QUEM LEVOU</th><th style="width:90px">Nº LEILÃO</th><th style="width:70px">QTD</th><th style="width:30px"></th></tr></thead><tbody id="eb"></tbody></table></div>
@@ -346,6 +347,17 @@ $("#imp").onclick=async()=>{
   $("#imp").disabled=true;st("importando…");
   for(let i=0;i<SEED.length;i+=200){const r=await sb.from("cards").insert(SEED.slice(i,i+200).map(c=>({...c,user_id:uid})));if(r.error){st("erro na importação");console.error(r.error);$("#imp").disabled=false;return}}
   await load();$("#imp").disabled=false};
+$("#cleanEmpty").onclick=async()=>{
+  const empty=S.cards.filter(c=>!(c.carta||"").trim()&&!(c.quem||"").trim()&&c.lance1==null&&c.lance2==null&&c.lance3==null&&c.lance4==null);
+  if(!empty.length){alert("Nenhuma linha vazia encontrada.");return}
+  if(!confirm(`Apagar ${empty.length} linha(s) vazia(s) (sem carta, sem valores e sem quem levou)?`))return;
+  const ids=empty.map(c=>c.id);
+  $("#cleanEmpty").disabled=true;st("limpando…");
+  const r=await sb.from("cards").delete().in("id",ids);
+  if(r.error){st("erro ao limpar");console.error(r.error);$("#cleanEmpty").disabled=false;return}
+  S.cards=S.cards.filter(c=>!ids.includes(c.id));
+  all();$("#cleanEmpty").disabled=false;st("☁️ salvo");
+};
 function cellPos(el){
   const cell=el.closest("td");if(!cell)return null;
   const row=cell.parentElement,tbody=row.parentElement;
@@ -353,7 +365,8 @@ function cellPos(el){
 }
 function focusCell(tbody,ri,ci){
   const row=tbody.children[ri];if(!row)return false;
-  const el=row.children[ci]?.querySelector("input,textarea");if(!el)return false;
+  const cell=row.children[ci];if(!cell)return false;
+  const el=cell.querySelector('input[type="text"],textarea')||cell.querySelector("input,textarea");if(!el)return false;
   el.focus();el.select?.();return true;
 }
 function arrowNav(e){
@@ -380,7 +393,8 @@ function verticalTab(e){
     }
     return;
   }
-  const target=nextRow.children[ci]?.querySelector("input,textarea");if(!target)return;
+  const nc=nextRow.children[ci];if(!nc)return;
+  const target=nc.querySelector('input[type="text"],textarea')||nc.querySelector("input,textarea");if(!target)return;
   e.preventDefault();target.focus();target.select?.();
 }
 $("#eb").addEventListener("keydown",verticalTab);
