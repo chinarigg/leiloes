@@ -149,13 +149,20 @@ function setOrd(quem,leilao,patch){
   const o=S.orders[k]={...ord(k),...patch};renderTiles();st("salvando…");
   chk(sb.from("orders").upsert({user_id:uid,quem:norm(quem),leilao:leilao??null,pago:!!o.pago,cobranca:!!o.cobranca,frete:o.frete??null,enviado:!!o.enviado,obs:o.obs||"",concluido:!!o.concluido},{onConflict:"user_id,quem,leilao"}));
 }
+let loadedOnce=false;
 async function load(){
   st("carregando…");
-  // garante que a tela sempre começa sem filtro/busca presos (o navegador às
-  // vezes restaura o que estava digitado antes de um refresh)
-  ["#q","#fl","#rq","#rfl","#pq"].forEach(s=>{const el=$(s);if(el)el.value="";});
-  pflSel.clear();
-  const [c,o]=await Promise.all([sb.from("cards").select("*").order("ordem",{nullsFirst:false}).order("created_at").order("id"),sb.from("orders").select("*")]);
+  if(!loadedOnce){
+    // garante que a tela sempre começa sem filtro/busca presos (o navegador às
+    // vezes restaura o que estava digitado antes de um refresh). Só faz isso
+    // na primeira carga — o Supabase pode disparar o evento de sessão mais de
+    // uma vez (ex: confirmando o login alguns segundos depois), e repetir a
+    // limpeza nessas vezes apagaria um filtro que o usuário acabou de escolher.
+    ["#q","#fl","#rq","#rfl","#pq"].forEach(s=>{const el=$(s);if(el)el.value="";});
+    pflSel.clear();
+    loadedOnce=true;
+  }
+  const [c,o]=await Promise.all([sb.from("cards").select("*").order("ordem",{nullsFirst:false}).order("created_at").order("id").range(0,19999),sb.from("orders").select("*").range(0,19999)]);
   if(c.error||o.error){st("erro ao carregar");console.error(c.error||o.error);return}
   S.cards=c.data.map(r=>({id:r.id,carta:r.carta,preco:r.preco,quem:r.quem,leilao:r.leilao,quantidade:r.quantidade??1,ordem:r.ordem}));
   S.orders={};o.data.forEach(r=>S.orders[gkey(r.quem,r.leilao)]={pago:r.pago,cobranca:r.cobranca,frete:r.frete,enviado:r.enviado,obs:r.obs,concluido:r.concluido});
