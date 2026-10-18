@@ -71,6 +71,7 @@ tr.dragover{outline:2px dashed var(--ac);outline-offset:-2px}
 <button class="btn" id="add">+ Adicionar carta</button>
 <button class="btn g" id="copySel">Copiar selecionadas</button>
 <button class="btn g" id="imp" hidden>Importar planilha (556 cartas)</button>
+<button class="btn g" id="cleanEmpty">Limpar linhas vazias</button>
 </div>
 <div class="tw"><table><thead><tr><th style="width:24px"></th><th style="width:26px"><input type="checkbox" id="selAll" title="Selecionar tudo"></th><th>CARTA</th><th style="width:90px">PREÇO (R$)</th><th style="width:70px">QTD</th><th>QUEM LEVOU</th><th style="width:90px">Nº LEILÃO</th><th style="width:30px"></th></tr></thead><tbody id="eb"></tbody></table></div>
 <datalist id="buyers"></datalist>
@@ -150,6 +151,10 @@ function setOrd(quem,leilao,patch){
 }
 async function load(){
   st("carregando…");
+  // garante que a tela sempre começa sem filtro/busca presos (o navegador às
+  // vezes restaura o que estava digitado antes de um refresh)
+  ["#q","#fl","#rq","#rfl","#pq"].forEach(s=>{const el=$(s);if(el)el.value="";});
+  pflSel.clear();
   const [c,o]=await Promise.all([sb.from("cards").select("*").order("ordem",{nullsFirst:false}).order("created_at").order("id"),sb.from("orders").select("*")]);
   if(c.error||o.error){st("erro ao carregar");console.error(c.error||o.error);return}
   S.cards=c.data.map(r=>({id:r.id,carta:r.carta,preco:r.preco,quem:r.quem,leilao:r.leilao,quantidade:r.quantidade??1,ordem:r.ordem}));
@@ -286,7 +291,7 @@ $("#add").onclick=()=>addCard(true);
 $("#eb").addEventListener("paste",e=>{
   const t=e.target;if(!t.dataset.f)return;
   const text=(e.clipboardData||window.clipboardData).getData("text/plain");
-  const lines=text.replace(/\r/g,"").split("\n").filter((l,i,a)=>l!==""||i<a.length-1);
+  const lines=text.replace(/\r/g,"").split("\n").filter(l=>l.trim()!=="");
   if(lines.length<=1&&!lines[0]?.includes("\t"))return; // deixa o paste normal do navegador acontecer
   e.preventDefault();
   const cols=["carta","preco","quantidade","quem","leilao"];
@@ -315,6 +320,17 @@ $("#imp").onclick=async()=>{
   $("#imp").disabled=true;st("importando…");
   for(let i=0;i<SEED.length;i+=200){const r=await sb.from("cards").insert(SEED.slice(i,i+200).map(c=>({...c,user_id:uid})));if(r.error){st("erro na importação");console.error(r.error);$("#imp").disabled=false;return}}
   await load();$("#imp").disabled=false};
+$("#cleanEmpty").onclick=async()=>{
+  const empty=S.cards.filter(c=>!(c.carta||"").trim()&&!(c.quem||"").trim()&&c.preco==null);
+  if(!empty.length){alert("Nenhuma linha vazia encontrada.");return}
+  if(!confirm(`Apagar ${empty.length} linha(s) vazia(s) (sem carta, sem valores e sem quem levou)?`))return;
+  const ids=empty.map(c=>c.id);
+  $("#cleanEmpty").disabled=true;st("limpando…");
+  const r=await sb.from("cards").delete().in("id",ids);
+  if(r.error){st("erro ao limpar");console.error(r.error);$("#cleanEmpty").disabled=false;return}
+  S.cards=S.cards.filter(c=>!ids.includes(c.id));
+  all();$("#cleanEmpty").disabled=false;st("☁️ salvo");
+};
 function cellPos(el){
   const cell=el.closest("td");if(!cell)return null;
   const row=cell.parentElement,tbody=row.parentElement;
@@ -322,7 +338,8 @@ function cellPos(el){
 }
 function focusCell(tbody,ri,ci){
   const row=tbody.children[ri];if(!row)return false;
-  const el=row.children[ci]?.querySelector("input,textarea");if(!el)return false;
+  const cell=row.children[ci];if(!cell)return false;
+  const el=cell.querySelector('input[type="text"],textarea')||cell.querySelector("input,textarea");if(!el)return false;
   el.focus();el.select?.();return true;
 }
 function arrowNav(e){
@@ -349,7 +366,8 @@ function verticalTab(e){
     }
     return;
   }
-  const target=nextRow.children[ci]?.querySelector("input,textarea");if(!target)return;
+  const nc=nextRow.children[ci];if(!nc)return;
+  const target=nc.querySelector('input[type="text"],textarea')||nc.querySelector("input,textarea");if(!target)return;
   e.preventDefault();target.focus();target.select?.();
 }
 $("#eb").addEventListener("keydown",verticalTab);
